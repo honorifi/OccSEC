@@ -1,0 +1,17 @@
+[package]
+name = "rust_test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+openssl = "0.10"
+openssl-sys = "0.9"
+num-primes = "0.2.0"
+# aes-soft = { git = "https://github.com/mesalock-linux/rustcrypto-block-ciphers-sgx" }
+# block-modes = { git = "https://github.com/mesalock-linux/rustcrypto-block-ciphers-sgx" }
+sgx_ucrypto = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk"}
+sgx_types = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk"}
+rand = "0.8"
+num-bigint = { version = "0.4", features = ["rand"] }

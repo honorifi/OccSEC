@@ -1,0 +1,13 @@
+[package]
+name = "cert_mg"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+base64 = "0.2"
+rand = "0.8"
+num-bigint = { version = "0.4", features = ["rand"] }
+sgx_ucrypto = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk"}
+sgx_types = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk"}
