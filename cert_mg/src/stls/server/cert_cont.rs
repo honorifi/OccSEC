@@ -14,7 +14,7 @@ impl CertContain {
         Self {
             container: HashMap::new(),
             gc: Vec::new(),
-            max_tag: 0,
+            max_tag: 1,
         }
     }
 

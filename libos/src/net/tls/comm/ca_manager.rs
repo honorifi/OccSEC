@@ -115,7 +115,8 @@ pub fn generate_ec_file(filename: &str) {
 pub fn get_echash_fromfile(filename: &str) -> usize {
     let file_exist = FileReader::is_exist(filename);
     if !file_exist {
-        test_client::generate_and_regist_pubkey();
+        // test_client::generate_and_regist_pubkey();
+        return 0;
     }
 
     let mut file = FileReader::open(filename).unwrap();

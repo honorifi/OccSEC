@@ -2,7 +2,14 @@ use super::*;
 use sgx_tstd::net::TcpStream;
 use client::hs::CertMG_tls_handshake;
 use conn::msg_handle::PackHandle;
-use comm::ecdsa::EcdsaPublic;
+use comm::ecdsa::{EcdsaPublic, EcdsaPublicBytes};
+use std::collections::HashMap;
+
+lazy_static! {
+    static ref KEY_LOCAL_CACHE: SgxMutex<HashMap<usize, EcdsaPublicBytes>> = 
+        SgxMutex::new(HashMap::new());
+}
+
 
 const LENGH_WIDTH: usize = std::mem::size_of::<usize>();
 
@@ -129,7 +136,15 @@ pub fn generate_and_regist_pubkey() -> usize {
 }
 
 pub fn request_peer_pubkey(ec_hash_tag: usize) -> EcdsaPublic {
-    println!("request peer EC_pubkey");
+    let mut klc = KEY_LOCAL_CACHE.lock().unwrap();
+    match klc.get(&ec_hash_tag) {
+        Some(pubkey_bytes) => {
+            println!("found peer EC_pubkey in KLC");
+            let handle = pubkey_bytes.to_pub_handle();
+            return handle;
+        }
+        None => println!("request peer EC_pubkey from CertMG"),
+    };
 
     let mut conn = TcpStream::connect("127.0.0.1:10011").unwrap();
     let mut packhandle = PackHandle::new(&conn);
@@ -146,6 +161,7 @@ pub fn request_peer_pubkey(ec_hash_tag: usize) -> EcdsaPublic {
         panic!("hash_tag:{} with no pubkey found in CertMG", ec_hash_tag);
     }
     let ret = EcdsaPublic::from_be_bytes(&pubkey_bytes_dec);
+    klc.insert(ec_hash_tag, EcdsaPublicBytes::from_pub_handle(&ret));
     
     let close_req = aes_cipher.encrypt("close".as_bytes());
     packhandle.send_msg(&close_req, close_req.len());

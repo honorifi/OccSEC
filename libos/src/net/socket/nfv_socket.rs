@@ -38,8 +38,8 @@ macro_rules! echo_buf {
 pub struct NfvSocket {
     // pub nfv_fd: Arc<dyn File>,
     pub host_sc: HostSocket,
-    pub aes_cipher: Mutex<Aes128CtrCipher>,
-    pub pub_key_hash_tag: usize,
+    pub aes_cipher: SgxMutex<Aes128CtrCipher>,
+    pub pub_key_hash_tag: usize,       // 0 means did not registed yet.
     //pub key: Some(BigUint),
     //pub elp_service: RunningELP,
 }
@@ -64,7 +64,7 @@ impl NfvSocket {
 
         let hs = HostSocket::new(domain, socket_type, file_flags, protocol)?;
         let mut raw_aes_cipher = Aes128CtrCipher::empty_new();
-        let aes_cipher =  Mutex::new(raw_aes_cipher);
+        let aes_cipher =  SgxMutex::new(raw_aes_cipher);
         //let elp_service = EncryptLocalProxy::new(fd.clone()).start();
 
         Ok(Self {
@@ -90,7 +90,7 @@ impl NfvSocket {
         let pub_key_hash_tag = tls::comm::ca_manager::get_echash_fromfile("/host/hash_tag");
 
         let mut raw_aes_cipher = Aes128CtrCipher::empty_new();
-        let aes_cipher = Mutex::new(raw_aes_cipher);
+        let aes_cipher = SgxMutex::new(raw_aes_cipher);
 
         Self {
             // nfv_fd: fd, 
@@ -106,7 +106,7 @@ impl NfvSocket {
 
         Self {
             host_sc,
-            aes_cipher: Mutex::new(cipher),
+            aes_cipher: SgxMutex::new(cipher),
             pub_key_hash_tag, 
         }
     }
@@ -127,6 +127,11 @@ impl NfvSocket {
         //     },
         //     Err(error) => panic!("socket accept failed {:?}", &error),
         // };
+
+        if self.pub_key_hash_tag == 0 {
+            return Ok((NfvSocket::from_host_sc(host_sc), addr_option));
+        }
+
         match self.server_tls_handshake(&host_sc) {
             Ok(cipher) => {
                 Ok((NfvSocket::from_hsc_cipher(host_sc, cipher), addr_option))
@@ -175,7 +180,9 @@ impl NfvSocket {
         // tls::test_client::safe_regist();
         let ret = self.host_sc.connect(addr);
 
-        self.client_tls_handshake();
+        if self.pub_key_hash_tag != 0{
+            self.client_tls_handshake();
+        }
 
         ret
     }

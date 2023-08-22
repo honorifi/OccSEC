@@ -19,11 +19,9 @@ fi
 
 new_json="$(jq '.resource_limits.user_space_size = "640MB" |
         .resource_limits.kernel_space_heap_size = "256MB" |
-        .env.default += ["PYTHONHOME=/opt/python-occlum"]' Occlum.json)" && \
+        .env.default += ["PYTHONHOME=/opt/python-occlum", "KSSP_MODE=off"]' Occlum.json)" && \
 echo "${new_json}" > Occlum.json
 occlum build
-touch image/Nfv_pipe
-chmod 766 image/Nfv_pipe
 
 cd ..
 cp -f myEC/ec* ./occlum_instance/

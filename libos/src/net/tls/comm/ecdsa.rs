@@ -207,3 +207,53 @@ impl Clone for EcdsaPublic {
         }
     }
 }
+
+pub struct EcdsaPublicBytes {
+    pub_key: sgx_ec256_public_t,
+}
+
+impl EcdsaPublicBytes {
+    pub fn to_be_bytes(&self) -> Vec<u8> {
+        let mut ret = Vec::new();
+
+        for i in 0 .. SGX_ECP256_KEY_SIZE {
+            ret.push(self.pub_key.gx[i]);
+            ret.push(self.pub_key.gy[i]);
+        };
+
+        ret
+    }
+
+    pub fn from_be_bytes(bytes: &[u8]) -> Self {
+        let mut gx = [0 as uint8_t; SGX_ECP256_KEY_SIZE];
+        let mut gy = [0 as uint8_t; SGX_ECP256_KEY_SIZE];
+
+        for i in 0 .. SGX_ECP256_KEY_SIZE {
+            gx[i] = bytes[i*2];
+            gy[i] = bytes[i*2+1];
+        };
+
+        Self {
+            pub_key: sgx_ec256_public_t { gx, gy },
+        }
+    }
+
+    pub fn equal(&self, x: &EcdsaPublicBytes) -> bool {
+        self.pub_key.gx == x.pub_key.gx && self.pub_key.gy == x.pub_key.gy
+    }
+
+    pub fn to_pub_handle(&self) -> EcdsaPublic {
+        let handle = sgx_tcrypto::SgxEccHandle::new();
+        handle.open();
+        EcdsaPublic {
+            handle,
+            pub_key: self.pub_key.clone(),
+        }
+    }
+
+    pub fn from_pub_handle(handle: &EcdsaPublic) -> Self {
+        Self {
+            pub_key: handle.pub_key.clone(),
+        }
+    }
+}

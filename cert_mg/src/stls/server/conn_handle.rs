@@ -173,12 +173,13 @@ impl CertService {
 
     fn regist_handle(&mut self) {
         let pub_key = self.parse_one_dec_msg().unwrap();
-        println!("recv one register request, got pub_key:");
         let len = pub_key.len();
-        echo_buf!(&pub_key, len);
 
         let mut container = self.container.lock().unwrap();
         let hash_key = container.regist(&pub_key);
+
+        println!("recv one register request, distribute hash_tag: {} to pub_key:", hash_key);
+        echo_buf!(&pub_key, len);
 
         let ret_msg = hash_key.to_be_bytes().to_vec();
         let enc_ret_msg = self.aes_cipher.encrypt(&ret_msg);
@@ -188,6 +189,7 @@ impl CertService {
     fn unregist_handle(&mut self) {
         let hash_key_bytes = self.parse_one_dec_msg().unwrap();
         let hash_key = usize::from_be_bytes(hash_key_bytes[..LENGH_WIDTH].try_into().unwrap());
+        println!("recv one unregist request, got hash_tag:{}", hash_key);
 
         let mut container = self.container.lock().unwrap();
         container.unregist(hash_key);
