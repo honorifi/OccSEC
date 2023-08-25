@@ -143,11 +143,33 @@ impl HostSocket {
 // copy from recv.rs, edit
 impl NfvSocket {
     pub fn recv(&self, buf: &mut [u8], flags: RecvFlags) -> Result<usize> {
-        self.host_sc.recv(buf, flags)
+        let aes_cipher = self.aes_cipher.lock().unwrap();
+
+        // aes_cipher.show_key();
+
+        if aes_cipher.key_valid() {
+            let mut rec_buf = vec![0u8; buf.len()];
+            let len = match self.host_sc.recv(&mut rec_buf, flags) {
+                Ok(ret) => ret,
+                Err(err) => {
+                    return Err(err);
+                    0
+                }
+            };
+
+            let dec_msg = aes_cipher.decrypt_to(buf, &rec_buf[0..len]);
+            // print!("recvfr: ");
+            // echo_buf!(&rec_buf);
+            // print!("decmsg: ");
+            // echo_buf!(&buf[0..len]);
+            Ok(len)
+        }
+        else {
+            self.host_sc.recv(buf, flags)
+        }
     }
 
     pub fn recvmsg<'a, 'b>(&self, msg: &'b mut MsgHdrMut<'a>, flags: RecvFlags) -> Result<usize> {
-        println!("recvmsg");
         // Do OCall-based recvmsg
         let (bytes_recvd, namelen_recvd, controllen_recvd, flags_recvd) = {
             // Acquire mutable references to the name and control buffers

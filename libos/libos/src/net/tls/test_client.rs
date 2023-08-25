@@ -127,7 +127,7 @@ pub fn generate_and_regist_pubkey() -> usize {
     let close_req = aes_cipher.encrypt("close".as_bytes());
     packhandle.send_msg(&close_req, close_req.len());
 
-    println!("hash_key: {}", hash_tag);
+    println!("hash_tag: {}", hash_tag);
 
     let hash_tag_file = comm::FileWriter::create("/host/hash_tag").unwrap();
     hash_tag_file.write(&hash_tag.to_be_bytes());
@@ -139,11 +139,11 @@ pub fn request_peer_pubkey(ec_hash_tag: usize) -> EcdsaPublic {
     let mut klc = KEY_LOCAL_CACHE.lock().unwrap();
     match klc.get(&ec_hash_tag) {
         Some(pubkey_bytes) => {
-            println!("found peer EC_pubkey in KLC");
+            println!("\x1b[32mfound peer EC_pubkey in KLC\x1b[0m");
             let handle = pubkey_bytes.to_pub_handle();
             return handle;
         }
-        None => println!("request peer EC_pubkey from CertMG"),
+        None => println!("\x1b[32mrequest peer EC_pubkey from CertMG\x1b[0m"),
     };
 
     let mut conn = TcpStream::connect("127.0.0.1:10011").unwrap();

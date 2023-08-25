@@ -6,6 +6,11 @@ use self::local_proxy::{EncryptLocalProxy, RunningELP, EncryptMsg};
 use tls::comm::aes_comm::Aes128CtrCipher;
 use std::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
 
+// please modify these two variable simutaneously for accurate err msg display
+const MAX_RETRY: usize = 10;
+const HANDSHAKE_FAIL_ERR: &str = "handshake failed after 10 times retry";
+// please modify these two variable simutaneously
+
 macro_rules! try_libc {
     ($ret: expr) => {{
         let ret = unsafe { $ret };
@@ -137,43 +142,54 @@ impl NfvSocket {
                 Ok((NfvSocket::from_hsc_cipher(host_sc, cipher), addr_option))
             },
             Err(err) => {
-                // println!(err);
+                println!("\x1b[33m[Warning:] {}\x1b[0m", err);
                 Ok((NfvSocket::from_host_sc(host_sc), addr_option))
             },
         }
     }
 
     fn server_tls_handshake(&self, host_sc: &HostSocket) -> Result<Aes128CtrCipher> {
+        let mut retry = 0;
+
         let rflag = RecvFlags::from_bits(0).unwrap();
         let mut client_hello = [0u8; 512];
-        let (msg_len, addr) = match host_sc.recvfrom(&mut client_hello, rflag){
-            Ok((x, y)) => (x, y),
-            Err(err) => {println!("err recv"); (0, None)},
-        };
-        println!("server_recv_msg_len: {}", msg_len);
 
-        match msg_len {
-            0 => {
-                Err(errno!(EINVAL, "err from server handshake: recieve 0 bytes from client"))
-            },
-            _ => {
-                let sflag = SendFlags::from_bits(0).unwrap();
-                let mut server_hs = server::hs::ServerHsRmAt::new();
-
-                let client_hello = &client_hello[0..msg_len];
-                println!("recv msg_len: {}", msg_len);
-                server_hs.recv_clienthello_and_decrypt(client_hello);
-
-                let server_hello = server_hs.reply_to_client();
-                host_sc.sendto(&server_hello, sflag, &addr);
-
-                let server_nego_key = server_hs.get_nego_key();
-
-                println!("nego_key: {}", server_nego_key);
-
-                Ok(Aes128CtrCipher::new(&server_nego_key.to_bytes_be()).unwrap())
-            },
+        let mut msg_len = 0;
+        while retry < MAX_RETRY {
+            match host_sc.recvfrom(&mut client_hello, rflag) {
+                Ok((x, y)) => {msg_len = x; break;},
+                _ => 0,
+            };
+            retry += 1;
         }
+
+        if msg_len != 0 {
+            // println!("server_recv_msg_len: {}", msg_len);
+
+            let sflag = SendFlags::from_bits(0).unwrap();
+            let mut server_hs = server::hs::ServerHsRmAt::new();
+
+            let client_hello = &client_hello[0..msg_len];
+            // println!("recv msg_len: {}", msg_len);
+            server_hs.recv_clienthello_and_decrypt(client_hello);
+
+            let server_hello = server_hs.reply_to_client();
+
+            retry = 0;
+            while retry < MAX_RETRY {
+                if let Ok(len) = host_sc.send(&server_hello, sflag) {
+                    let server_nego_key = server_hs.get_nego_key();
+
+                    // println!("nego_key: {}", server_nego_key);
+
+                    println!("\x1b[32mhandshake success\x1b[0m");
+                    return Ok(Aes128CtrCipher::new(&server_nego_key.to_bytes_be()).unwrap());
+                }
+                retry += 1;
+            }
+        }
+
+        Err(errno!(EINVAL, HANDSHAKE_FAIL_ERR))
     }
 
     pub fn connect(&self, addr: &Option<SockAddr>) -> Result<()> {
@@ -188,33 +204,48 @@ impl NfvSocket {
     }
 
     fn client_tls_handshake(&self) -> Result<()> {
+        let mut retry = 0;
+
         let sflag = SendFlags::from_bits(0).unwrap();
         let rflag = RecvFlags::from_bits(0).unwrap();
         let mut client_hs = client::hs::ClientHsRmAt::new();
     
         let client_hello = client_hs.start_handshake();
-        let msg_len = self.host_sc.sendto(&client_hello, sflag, &None).unwrap();
-        println!("send {} bytes", msg_len);
+        while retry < MAX_RETRY {
+            if let Ok(msg_len) = self.host_sc.sendto(&client_hello, sflag, &None) {
+                break;
+            }
+            retry += 1;
+        }
+        // println!("send {} bytes", msg_len);
     
         let mut server_hello = [0u8; 512];
-        let (msg_len, addr) = match self.host_sc.recvfrom(&mut server_hello, rflag) {
-            Ok((x, y)) => (x, y),
-            Err(err) => {println!("err from client handshake: {}", err); (0, None)},
-        };
+
+        retry = 0;
+        let mut msg_len = 0;
+        while retry < MAX_RETRY {
+            match self.host_sc.recvfrom(&mut server_hello, rflag) {
+                Ok((x, y)) => {msg_len = x; break;},
+                _ => 0,
+            };
+            retry += 1;
+        }
 
         if msg_len != 0 {
             let server_hello = &server_hello[0..msg_len];
-            println!("recv msg_len: {}", msg_len);
+            // println!("recv msg_len: {}", msg_len);
             client_hs.recv_serverhello_and_decrypt(server_hello);
         
             let client_nego_key = client_hs.get_nego_key();
             
-            println!("nego_key: {}", client_nego_key);
+            // println!("nego_key: {}", client_nego_key);
 
             self.aes_cipher.lock().unwrap().set_key(&client_nego_key.to_bytes_be());
+            println!("\x1b[32mhandshake success\x1b[0m");
+            return Ok(());
         }
 
-        Ok(())
+        Err(errno!(EINVAL, HANDSHAKE_FAIL_ERR))
     }
 
     pub fn sendto(
@@ -223,43 +254,52 @@ impl NfvSocket {
         flags: SendFlags,
         addr_option: &Option<SockAddr>,
     ) -> Result<usize> {
-        let aes_cipher = self.aes_cipher.lock().unwrap();
+        // let aes_cipher = self.aes_cipher.lock().unwrap();
 
-        // aes_cipher.show_key();
+        // // aes_cipher.show_key();
 
-        if aes_cipher.key_valid() {
-            let enc_msg = aes_cipher.encrypt(buf);
-            print!("origin: ");
-            echo_buf!(buf);
-            print!("sendto: ");
-            echo_buf!(&enc_msg);
-            self.host_sc.sendto(&enc_msg, flags, addr_option)
-        }
-        else {
-            self.host_sc.sendto(buf, flags, addr_option)
-        }
+        // if aes_cipher.key_valid() {
+        //     let enc_msg = aes_cipher.encrypt(buf);
+        //     // print!("origin: ");
+        //     // echo_buf!(buf);
+        //     // print!("sendto: ");
+        //     // echo_buf!(&enc_msg);
+        //     self.host_sc.sendto(&enc_msg, flags, addr_option)
+        // }
+        // else {
+        //     self.host_sc.sendto(buf, flags, addr_option)
+        // }
 
+        self.host_sc.sendto(buf, flags, addr_option)
     }
 
     pub fn recvfrom(&self, buf: &mut [u8], flags: RecvFlags) -> Result<(usize, Option<SockAddr>)> {
-        let aes_cipher = self.aes_cipher.lock().unwrap();
+        // let aes_cipher = self.aes_cipher.lock().unwrap();
 
-        // aes_cipher.show_key();
+        // // aes_cipher.show_key();
 
-        if aes_cipher.key_valid() {
-            let mut rec_buf = vec![0u8; buf.len()];
-            let (len, addr_option) = self.host_sc.recvfrom(&mut rec_buf, flags).unwrap();
+        // if aes_cipher.key_valid() {
+        //     let mut rec_buf = vec![0u8; buf.len()];
+        //     let (len, addr_option) = match self.host_sc.recvfrom(&mut rec_buf, flags) {
+        //         Ok(ret) => ret,
+        //         Err(err) => {
+        //             return Err(err);
+        //             (0, None)
+        //         }
+        //     };
 
-            let dec_msg = aes_cipher.decrypt_to(buf, &rec_buf[0..len]);
-            print!("recvfr: ");
-            echo_buf!(&rec_buf);
-            print!("decmsg: ");
-            echo_buf!(&buf[0..len]);
-            Ok((len, addr_option))
-        }
-        else {
-            self.host_sc.recvfrom(buf, flags)
-        }
+        //     let dec_msg = aes_cipher.decrypt_to(buf, &rec_buf[0..len]);
+        //     // print!("recvfr: ");
+        //     // echo_buf!(&rec_buf);
+        //     // print!("decmsg: ");
+        //     // echo_buf!(&buf[0..len]);
+        //     Ok((len, addr_option))
+        // }
+        // else {
+        //     self.host_sc.recvfrom(buf, flags)
+        // }
+
+        self.host_sc.recvfrom(buf, flags)
     }
 
     pub fn raw_host_fd(&self) -> FileDesc {
@@ -267,7 +307,7 @@ impl NfvSocket {
     }
 
     pub fn shutdown(&self, how: HowToShut) -> Result<()> {
-        println!("call nfv shutdown");
+        // println!("call nfv shutdown");
         //self.elp_service.stop();
         self.host_sc.shutdown(how)
     }

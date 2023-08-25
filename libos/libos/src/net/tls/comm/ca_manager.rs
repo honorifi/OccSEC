@@ -89,7 +89,10 @@ impl FileReader {
         let ret = FileReader::open(path);
         match ret {
             Ok(f) => true,
-            Err(err) => {println!("is_exist err: {}", err); false},
+            Err(err) => {
+                // println!("is_exist err: {}", err);
+                false
+            },
         }
     }
 }

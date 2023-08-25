@@ -92,7 +92,21 @@ impl HostSocket {
 // copy from send.rs, edit
 impl NfvSocket {
     pub fn send(&self, buf: &[u8], flags: SendFlags) -> Result<usize> {
-        self.host_sc.send(buf, flags)
+        let aes_cipher = self.aes_cipher.lock().unwrap();
+
+        // aes_cipher.show_key();
+
+        if aes_cipher.key_valid() {
+            let enc_msg = aes_cipher.encrypt(buf);
+            // print!("origin: ");
+            // echo_buf!(buf);
+            // print!("sendto: ");
+            // echo_buf!(&enc_msg);
+            self.host_sc.send(&enc_msg, flags)
+        }
+        else {
+            self.host_sc.send(buf, flags)
+        }
     }
 
     pub fn sendmsg<'a, 'b>(&self, msg: &'b MsgHdr<'a>, flags: SendFlags) -> Result<usize> {
