@@ -1,0 +1,10 @@
+prefix=/root/occlum/kxc_demos/sysbench/sysbench-1.1/third_party/concurrency_kit
+includedir=/root/occlum/kxc_demos/sysbench/sysbench-1.1/third_party/concurrency_kit/include
+libdir=/root/occlum/kxc_demos/sysbench/sysbench-1.1/third_party/concurrency_kit/lib
+
+Name: Concurrency Kit
+Description: Toolkit for well-specified design and implementation of concurrent systems
+URL: http://concurrencykit.org/
+Version: 1.0.0
+Libs: -L${libdir} -lck
+Cflags: -D__x86_64__ -I${includedir} 

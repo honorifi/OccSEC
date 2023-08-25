@@ -1,0 +1,21 @@
+includes:
+  - base.yaml
+# mysql
+targets:
+  # copy bins
+  - target: /bin
+    copy:
+      - files:
+        # server tools
+        - ../tcpkali-installed/src/tcpkali
+  - target: /etc
+    copy:
+      - files:
+        - ../myCA/server-key.pem
+        - ../myCA/server-cert.pem
+        - ../myCA/client-key.pem
+        - ../myCA/client-cert.pem
+  - target: /lib
+    copy:
+      - files:
+        - /lib/terminfo/

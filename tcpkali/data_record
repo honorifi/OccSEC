@@ -1,0 +1,29 @@
+OCCLUM tcpkali-server OCCLUM tcpkali-client TLS:
+occlum run /bin/tcpkali 127.1:3308 --latency-connect --connections=100 --duration=180 --connect-rate=100 --message "msg" --ssl --ssl-key /etc/client-key.pem --ssl-cert /etc/client-cert.pem
+Destination: [127.0.0.1]:3308
+Interface lo address [127.0.0.1]:0
+Using interface lo to connect to [127.0.0.1]:3308
+Ramped up to 100 connections.
+Total data sent:     0 bytes (0 bytes)⇡; 100) (c=457.5 ms⁹⁵ᵖ)
+Total data received: 0 bytes (0 bytes)
+Bandwidth per channel: 0.000⇅ Mbps (0.0 kBps)
+Aggregate bandwidth: 0.000↓, 0.000↑ Mbps
+Packet rate estimate: 0.0↓, 0.0↑ (0↓, 0↑ TCP MSS/op)
+TCP connect latency at percentiles: 457.5/548.3/557.9 ms (95/99/99.5%)
+Test duration: 180.532 s.
+
+
+OCCLUM tcpkali-server OCCLUM tcpkali-client KSSP:
+occlum run /bin/tcpkali 127.1:3308 --latency-connect --connections=100 --duration=180 --connect-rate=100
+kssp_mode on, my hash_tag: 14
+Destination: [127.0.0.1]:3308
+Interface lo address [127.0.0.1]:0
+Using interface lo to connect to [127.0.0.1]:3308
+Ramped up to 100 connections.
+Total data sent:     0 bytes (0 bytes)⇡; 100) (c=124.3 ms⁹⁵ᵖ)
+Total data received: 9.8 KiB (9984 bytes)
+Bandwidth per channel: 0.000⇅ Mbps (0.0 kBps)
+Aggregate bandwidth: 0.000↓, 0.000↑ Mbps
+Packet rate estimate: 0.3↓, 0.0↑ (1↓, 0↑ TCP MSS/op)
+TCP connect latency at percentiles: 124.3/149.8/152.1 ms (95/99/99.5%)
+Test duration: 180 s.

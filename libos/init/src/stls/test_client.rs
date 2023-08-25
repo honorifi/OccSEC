@@ -100,7 +100,7 @@ pub fn safe_unregist(hash_key: usize) {
 }
 
 pub fn generate_and_regist_pubkey(kssp_mode: bool) {
-    println!("generate and regist my ECkey");
+    // println!("generate and regist my ECkey");
 
     // delete and unregist previous hash_tag
     let hash_tag = match std::fs::metadata("/host/hash_tag").is_ok() {
@@ -122,13 +122,19 @@ pub fn generate_and_regist_pubkey(kssp_mode: bool) {
         return;
     }
 
+    let mut conn = match TcpStream::connect("127.0.0.1:10011") {
+        Ok(ret) => ret,
+        Err(err) => {
+            println!("\x1b[33m[Warning:] CertMG unreachable, KSSP unavailable the msg will be transmitted in plaintext!\x1b[0m");
+            return ;
+        }
+    };
+    let mut packhandle = PackHandle::new(&conn);
+    let aes_cipher = client::hs::client_tls_handshake(&conn);
+
     comm::ca_manager::generate_ec_file("/host/myEC_key");
     let ec_handle = comm::ca_manager::get_ec_fromfile("/host/myEC_key");
     let pub_key = ec_handle.to_pub_handle().to_be_bytes();
-
-    let mut conn = TcpStream::connect("127.0.0.1:10011").unwrap();
-    let mut packhandle = PackHandle::new(&conn);
-    let aes_cipher = client::hs::client_tls_handshake(&conn);
 
     if hash_tag != 0 {
         let req_type = aes_cipher.encrypt("unregist".as_bytes());
@@ -149,7 +155,7 @@ pub fn generate_and_regist_pubkey(kssp_mode: bool) {
     let close_req = aes_cipher.encrypt("close".as_bytes());
     packhandle.send_msg(&close_req, close_req.len());
 
-    println!("hash_key: {}", hash_tag);
+    println!("\x1b[32mkssp_mode on, my hash_tag: {}\x1b[0m", hash_tag);
 
     let mut hash_tag_file = std::fs::File::create("/host/hash_tag").unwrap();
     hash_tag_file.write(&hash_tag.to_be_bytes());

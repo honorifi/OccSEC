@@ -60,7 +60,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
         Err(err) => false,
     };
-    println!("kssp mode: {}", kssp_mode);
     stls::test_client::generate_and_regist_pubkey(kssp_mode);
     // edit by kxc ^
 
