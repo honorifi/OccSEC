@@ -8,6 +8,7 @@ use crate::fs::{
     occlum_ocall_ioctl, AccessMode, AtomicIoEvents, CreationFlags, File, FileRef, HostFd, IoEvents,
     IoctlCmd, StatusFlags, STATUS_FLAGS_MASK,
 };
+const LENGH_WIDTH: usize = std::mem::size_of::<usize>();
 
 //TODO: refactor write syscall to allow zero length with non-zero buffer
 impl File for HostSocket {
@@ -101,26 +102,52 @@ impl File for HostSocket {
 extern crate sgx_types;
 impl File for NfvSocket {
     fn read(&self, buf: &mut [u8]) -> Result<usize> {
+        println!("call nfv read");
         self.host_sc.read(buf)
     }
 
     fn write(&self, buf: &[u8]) -> Result<usize> {
+        println!("call nfv write");
         self.host_sc.write(buf)
     }
 
     fn read_at(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
+        println!("call nfv read_at");
         self.host_sc.read_at(offset, buf)
     }
 
     fn write_at(&self, offset: usize, buf: &[u8]) -> Result<usize> {
+        println!("call nfv write_at");
         self.host_sc.write_at(offset, buf)
     }
 
     fn readv(&self, bufs: &mut [&mut [u8]]) -> Result<usize> {
+        println!("call nfv readv");
         self.host_sc.readv(bufs)
     }
 
     fn writev(&self, bufs: &[&[u8]]) -> Result<usize> {
+        // println!("call nfv writev");
+        let aes_cipher = self.aes_cipher.read().unwrap();
+        let mut ret_len = 0;
+        if aes_cipher.key_valid() {
+            let mut enc_msg = Vec::new();
+            for data in bufs {
+                ret_len += data.len();
+                enc_msg.push(aes_cipher.encrypt_mark_len(data));
+            }
+            let mut enc_bufs = Vec::new();
+            let len = enc_msg.len();
+            for i in 0..len {
+                enc_bufs.push(&enc_msg[i][..]);
+            }
+            let attached_len_msg_len = len * LENGH_WIDTH;
+            return match self.host_sc.writev(&enc_bufs) {
+                Ok(x) => Ok(ret_len),
+                Err(err) => Err(err),
+            };
+        }
+        
         self.host_sc.writev(bufs)
     }
 

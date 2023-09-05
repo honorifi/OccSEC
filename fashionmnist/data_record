@@ -1,0 +1,12 @@
+OCCLUM TLS:
+CPU Elapsed time: 1241.999685445
+Elapsed time: 237.6976857148111
+
+OCCLUM KSSP-shared-aes amb:
+CPU Elapsed time: 1196.4552823130002
+Elapsed time: 245.91479017026722
+
+OCCLUM KSSP-shared-aes synchronous I/O:
+CPU Elapsed time: 752.5739923110001
+Elapsed time: 152.7089387755841
+

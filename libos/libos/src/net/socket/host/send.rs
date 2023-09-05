@@ -92,43 +92,57 @@ impl HostSocket {
 // copy from send.rs, edit
 impl NfvSocket {
     pub fn send(&self, buf: &[u8], flags: SendFlags) -> Result<usize> {
-        let aes_cipher = self.aes_cipher.lock().unwrap();
-
-        // aes_cipher.show_key();
-
-        if aes_cipher.key_valid() {
-            let enc_msg = aes_cipher.encrypt(buf);
-            // print!("origin: ");
-            // echo_buf!(buf);
-            // print!("sendto: ");
-            // echo_buf!(&enc_msg);
+        // kssp mode on
+        if self.pub_key_hash_tag != 0 {
+            println!("call send");
+            if let Err(err) = self.check_handshake_before_comm() {
+                return self.host_sc.send(buf, flags);
+            }
+            // send can only happen after connect, and right before connect happend
+            // aes_cipher will be write-block, then once the read_lock acquired, the aes_cipher must be ready.
+            // let enc_msg = self.aes_cipher.read().unwrap().encrypt(buf);
+            // // print!("origin: ");
+            // // echo_buf!(buf);
+            // // print!("sendto: ");
+            // // echo_buf!(&enc_msg);
+            // self.host_sc.send(&enc_msg, flags)
+            let enc_msg = self.aes_cipher.read().unwrap().encrypt_mark_len(buf);
             self.host_sc.send(&enc_msg, flags)
         }
+        // kssp mode off
         else {
             self.host_sc.send(buf, flags)
         }
     }
 
     pub fn sendmsg<'a, 'b>(&self, msg: &'b MsgHdr<'a>, flags: SendFlags) -> Result<usize> {
-        println!("sendmsg");
-        let data = msg.get_iovs().as_slices();
-        let name = msg.get_name();
-        let control = msg.get_control();
-
-        let data_length = data.iter().map(|s| s.len()).sum();
-        let u_allocator = UntrustedSliceAlloc::new(data_length)?;
-        let u_data = {
-            let mut bufs = Vec::new();
-            for buf in data {
-                // let mut encrypt_buf = vec![0; buf.len()];
-                // EncryptMsg::buf_copy(&mut encrypt_buf, buf);
-                // EncryptMsg::msg_encrypt(&mut encrypt_buf, 0x3f3f3f3f);
-                bufs.push(u_allocator.new_slice(buf)?);
+        if self.pub_key_hash_tag != 0 {
+            println!("call sendmsg");
+            if let Err(err) = self.check_handshake_before_comm() {
+                return self.host_sc.sendmsg(msg, flags);
             }
-            bufs
-        };
+            let data = msg.get_iovs().as_slices();
+            let name = msg.get_name();
+            let control = msg.get_control();
 
-        self.host_sc.do_sendmsg_untrusted_data(&u_data, flags, name, control)
+            let data_length = data.iter().map(|s| s.len()).sum();
+            let u_allocator = UntrustedSliceAlloc::new(data_length)?;
+            let u_data = {
+                let mut bufs = Vec::new();
+                let aes_cipher = self.aes_cipher.read().unwrap();
+                for buf in data {
+                    let enc_msg = aes_cipher.encrypt(buf);
+                    bufs.push(u_allocator.new_slice(&enc_msg)?);
+                }
+                drop(aes_cipher);
+                bufs
+            };
+
+            self.host_sc.do_sendmsg_untrusted_data(&u_data, flags, name, control)
+        }
+        else {
+            self.host_sc.sendmsg(msg, flags)
+        }
     }
 }
 

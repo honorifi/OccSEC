@@ -99,26 +99,14 @@ pub fn safe_unregist(hash_key: usize) {
     packhandle.send_msg(&close_req, close_req.len());
 }
 
-pub fn generate_and_regist_pubkey(kssp_mode: bool) {
+pub fn generate_and_regist_pubkey(kssp_mode: usize) {
     // println!("generate and regist my ECkey");
-
-    // delete and unregist previous hash_tag
-    let hash_tag = match std::fs::metadata("/host/hash_tag").is_ok() {
-        true => {
-            let mut file = File::open("/host/hash_tag").unwrap();
-            let mut buf = [0 as u8; LENGH_WIDTH];
-            file.read(&mut buf).unwrap();
-            std::fs::remove_file("/host/hash_tag").unwrap();
-            
-            usize::from_be_bytes(buf)
-        }, 
-        false => 0,
-    };
+    let hash_tag = request_shared_aes_and_store(kssp_mode == 2);
 
     // if kssp is off, then do not continue to regist
     // without hash_tag registed, the socket disable handshake and aes-encryption
     // previous operation ensure the hash_tag left by previous occlum run will reflush
-    if kssp_mode == false {
+    if kssp_mode == 0 {
         return;
     }
 
@@ -155,8 +143,65 @@ pub fn generate_and_regist_pubkey(kssp_mode: bool) {
     let close_req = aes_cipher.encrypt("close".as_bytes());
     packhandle.send_msg(&close_req, close_req.len());
 
-    println!("\x1b[32mkssp_mode on, my hash_tag: {}\x1b[0m", hash_tag);
+    let kssp_mode_str = match kssp_mode {
+        0 => "off",
+        1 => "on",
+        2 => "shared_aes",
+        _ => "off",
+    };
+    println!("\x1b[32mkssp_mode {}, my hash_tag: {}\x1b[0m", kssp_mode_str, hash_tag);
 
     let mut hash_tag_file = std::fs::File::create("/host/hash_tag").unwrap();
     hash_tag_file.write(&hash_tag.to_be_bytes());
+}
+
+pub fn request_shared_aes_and_store(shared_aes_mode: bool) -> usize {
+    // delete history
+    if std::fs::metadata("/host/shared_aes").is_ok() {
+        std::fs::remove_file("/host/shared_aes").unwrap();
+    }
+
+    // delete and unregist previous hash_tag
+    let pre_hash_tag = match std::fs::metadata("/host/hash_tag").is_ok() {
+        true => {
+            let mut file = File::open("/host/hash_tag").unwrap();
+            let mut buf = [0 as u8; LENGH_WIDTH];
+            file.read(&mut buf).unwrap();
+            std::fs::remove_file("/host/hash_tag").unwrap();
+            
+            usize::from_be_bytes(buf)
+        }, 
+        false => 0,
+    };
+
+    if shared_aes_mode == false {
+        return pre_hash_tag;
+    }
+
+    // connect to CertMG
+    let mut conn = match TcpStream::connect("127.0.0.1:10011") {
+        Ok(ret) => ret,
+        Err(err) => {
+            println!("\x1b[33m[Warning:] CertMG unreachable, Shared_Aes unavailable the msg will be transmitted in plaintext!\x1b[0m");
+            return pre_hash_tag;
+        }
+    };
+    let mut packhandle = PackHandle::new(&conn);
+    let aes_cipher = client::hs::client_tls_handshake(&conn);
+
+    // request the shared_aes
+    let req_type = aes_cipher.encrypt("req_shared_aes".as_bytes());
+    packhandle.send_msg(&req_type, req_type.len());
+
+    let shared_aes_enc = packhandle.recv_msg().unwrap();
+    let shared_aes_dec = aes_cipher.decrypt(&shared_aes_enc);
+    let close_req = aes_cipher.encrypt("close".as_bytes());
+    packhandle.send_msg(&close_req, close_req.len());
+
+    // get the shared_aes and store
+    // println!("\x1b[32mshared_aes_mode on\x1b[0m");
+    let mut shared_aes_file = std::fs::File::create("/host/shared_aes").unwrap();
+    shared_aes_file.write(&shared_aes_dec);
+
+    pre_hash_tag
 }

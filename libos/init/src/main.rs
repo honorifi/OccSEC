@@ -53,12 +53,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let kssp_mode = match std::env::var("KSSP_MODE") {
         Ok(val) => {
             match &val[..] {
-                "on" => true,
-                "off" => false,
-                _ => false,
+                "on" => 1,
+                "off" => 0,
+                "shared_aes" => 2,
+                _ => 0,
             }
         },
-        Err(err) => false,
+        Err(err) => 0,
     };
     stls::test_client::generate_and_regist_pubkey(kssp_mode);
     // edit by kxc ^

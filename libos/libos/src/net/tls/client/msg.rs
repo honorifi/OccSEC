@@ -78,9 +78,12 @@ impl ClientHelloMessage {
 
         match self.ec_hash_tag {
             Some(ec_hash) => {
+                // println!("[sign]: ident tag: {}\npubkey: {}", ec_hash, self.ec_priv_key.to_pub_handle().to_bytes_str());
                 let mut ec_hash_vec = ec_hash.to_be_bytes().to_vec();
-                ec_hash_vec.append(&mut ret);
-                ec_hash_vec
+                let mut msg_with_len = (ec_hash_vec.len()+ret.len()).to_be_bytes().to_vec();
+                msg_with_len.append(&mut ec_hash_vec);
+                msg_with_len.append(&mut ret);
+                msg_with_len
             },
             None => {ret},
         }
@@ -111,6 +114,7 @@ impl ClientHelloMessage {
 
     fn sign_with_ecdsa(&self, data: &[u8]) -> Vec<u8> {
         let mut ret = self.ec_priv_key.sign_msg_with_bytes(data);
+        // println!("signature: {}\nraw_data: {}", base64::encode(&ret), base64::encode(data));
         let mut data = data.to_vec();
         ret.append(&mut data);
         ret

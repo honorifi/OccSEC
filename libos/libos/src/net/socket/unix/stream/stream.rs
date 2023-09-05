@@ -24,6 +24,7 @@ pub struct Stream {
 
 impl Stream {
     pub fn new(flags: FileFlags) -> Self {
+        println!("create a stream");
         Self {
             inner: SgxMutex::new(Status::Idle(Info::new(
                 flags.contains(FileFlags::SOCK_NONBLOCK),

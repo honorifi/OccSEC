@@ -9,6 +9,12 @@ use std::sync::Arc;
 use comm::ca_manager;
 const USIZE_LENGH: usize = std::mem::size_of::<usize>();
 
+// please modify these two variable simutaneously for accurate err msg display
+const MAX_RETRY: usize = 1000;
+const HANDSHAKE_FAIL_ERR: &str = "handshake failed after 1000 times retry";
+// please modify these two variable simutaneously
+
+
 pub struct ServerHs {
     cypher: Option<ServerCypher>,
     dh_pub_key: Option<BigUint>,
@@ -151,7 +157,7 @@ impl ServerHsRmAt {
         }
     }
 
-    pub fn recv_clienthello_and_decrypt(&mut self, data: &[u8]) {
+    fn parse_clienthello(&mut self, data: &[u8]) {
         // let decrypted_data = self.veri_with_rsa(data);
         let decrypted_data = self.veri_with_ecdsa(data).unwrap();
     
@@ -184,6 +190,40 @@ impl ServerHsRmAt {
         let dh_pub_para = Arc::new((p, g));
         self.cypher = Some(ServerCypher::new(dh_pub_para));
 
+    }
+
+    pub fn recv_clienthello_and_parse(&mut self, conn: &HostSocket) -> Result<()> {
+        let rflag = RecvFlags::from_bits(0).unwrap();
+
+        let mut len_buf = [0u8; USIZE_LENGH];
+        // let mut retry = 0;
+        // while let Err(err) = conn.recvfrom(&mut len_buf, /*rflag*/ RecvFlags::MSG_DONTWAIT) {
+        //     if err.errno() != EAGAIN || retry >= MAX_RETRY {
+        //         // println!("recv severhello err: {:?}", err);
+        //         return Err(err);
+        //     }
+        //     retry += 1;
+        //     // msg_len = usize::from_be_bytes(len_buf);
+        //     // if msg_len != 0 {break;}
+        //     std::thread::park_timeout(std::time::Duration::from_millis(1));
+        // }
+        if let Err(err) = conn.recvfrom(&mut len_buf, rflag){
+            return Err(err);
+        }
+
+        let msg_len = usize::from_be_bytes(len_buf);
+        if msg_len == 0 || msg_len >= 512 {
+            return Err(errno!(EINVAL, "not clienthello msg"));
+        }
+        println!("clienthello len: {}", msg_len);
+        let mut data = vec![0u8; msg_len];
+        if let Err(err) = conn.recvfrom(&mut data, rflag){
+            return Err(err);
+        }
+
+        self.parse_clienthello(&data);
+
+        Ok(())
     }
 
     pub fn reply_to_client(&self) -> Vec<u8> {
@@ -223,9 +263,10 @@ impl ServerHsRmAt {
 
         let ec_hash_tag = usize::from_be_bytes(data[..USIZE_LENGH].try_into().unwrap());
         let ec_peer_pub_key = test_client::request_peer_pubkey(ec_hash_tag);
-
         let sign_msg_bytes = data[USIZE_LENGH..PREFIX_LENGH].to_vec();
+        // println!("[veri]: ident tag: {}\npubkey: {}", ec_hash_tag, ec_peer_pub_key.to_bytes_str());
         let raw_data = data[PREFIX_LENGH..].to_vec();
+        // println!("signature: {}\nraw_data: {}", base64::encode(&sign_msg_bytes), base64::encode(&raw_data));
         let veri_result = ec_peer_pub_key.veri_msg_with_bytes(
             &raw_data, &sign_msg_bytes);
         
