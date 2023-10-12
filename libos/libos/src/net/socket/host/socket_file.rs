@@ -127,25 +127,37 @@ impl File for NfvSocket {
     }
 
     fn writev(&self, bufs: &[&[u8]]) -> Result<usize> {
-        // println!("call nfv writev");
-        let aes_cipher = self.aes_cipher.read().unwrap();
-        let mut ret_len = 0;
-        if aes_cipher.key_valid() {
+        println!("call nfv writev");
+        // let aes_cipher = self.aes_cipher.read().unwrap();
+        // let mut ret_len = 0;
+        // if aes_cipher.key_valid() {
+        //     let mut enc_msg = Vec::new();
+        //     for data in bufs {
+        //         ret_len += data.len();
+        //         enc_msg.push(aes_cipher.encrypt_mark_len(data));
+        //     }
+        //     let mut enc_bufs = Vec::new();
+        //     let len = enc_msg.len();
+        //     for i in 0..len {
+        //         enc_bufs.push(&enc_msg[i][..]);
+        //     }
+        //     let attached_len_msg_len = len * LENGH_WIDTH;
+        //     return match self.host_sc.writev(&enc_bufs) {
+        //         Ok(x) => Ok(ret_len),
+        //         Err(err) => Err(err),
+        //     };
+        // }
+        if self.aes_cipher.read().unwrap().key_valid() {
             let mut enc_msg = Vec::new();
             for data in bufs {
-                ret_len += data.len();
-                enc_msg.push(aes_cipher.encrypt_mark_len(data));
+                enc_msg.push(self.rc4_cipher.encrypt(data));
             }
             let mut enc_bufs = Vec::new();
             let len = enc_msg.len();
             for i in 0..len {
                 enc_bufs.push(&enc_msg[i][..]);
             }
-            let attached_len_msg_len = len * LENGH_WIDTH;
-            return match self.host_sc.writev(&enc_bufs) {
-                Ok(x) => Ok(ret_len),
-                Err(err) => Err(err),
-            };
+            return self.host_sc.writev(&enc_bufs);
         }
         
         self.host_sc.writev(bufs)

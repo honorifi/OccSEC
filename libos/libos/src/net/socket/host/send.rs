@@ -106,7 +106,8 @@ impl NfvSocket {
             // // print!("sendto: ");
             // // echo_buf!(&enc_msg);
             // self.host_sc.send(&enc_msg, flags)
-            let enc_msg = self.aes_cipher.read().unwrap().encrypt_mark_len(buf);
+            // let enc_msg = self.aes_cipher.read().unwrap().encrypt_mark_len(buf);
+            let enc_msg = self.aes_cipher.read().unwrap().encrypt(buf);
             self.host_sc.send(&enc_msg, flags)
         }
         // kssp mode off

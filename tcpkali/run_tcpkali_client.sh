@@ -1,8 +1,8 @@
 cd occlum_instance_2
 
 CONN="100"
-DURATION="180"
-CONN_RATE="1000"
+DURATION="120"
+CONN_RATE="100"
 OPERATION="occlum run /bin/tcpkali 127.1:3308"
 MSG="\"msg\""
 SSL_CERT="/etc/client-cert.pem"

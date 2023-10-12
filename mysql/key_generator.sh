@@ -14,7 +14,7 @@ function generate_key_cert()
     # Prepare test private key
     openssl genrsa -out test.key 2048
     # Use private key to generate a Certificate Sign Request
-    openssl req -new -key test.key -out test.csr -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Ant/CN=${cn_name}"
+    openssl req -new -key test.key -out test.csr -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Any/CN=${cn_name}"
     # Use CA private key and CA file to sign test CSR
     openssl x509 -req -in test.csr -CA cacert.pem -CAkey ca.key -CAcreateserial -out test.crt -days 825 -sha256
 }

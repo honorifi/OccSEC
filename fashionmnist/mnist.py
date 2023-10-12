@@ -140,7 +140,7 @@ def main():
             args.backend), flush=True)
         dist.init_process_group(backend=args.backend)
 
-    kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
+    kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else { }
 
     print("Before downloading data", flush=True)
     train_data = datasets.FashionMNIST(DATA_PATH,

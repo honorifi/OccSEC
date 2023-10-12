@@ -9,9 +9,9 @@ NC='\033[0m'
 if [ $1 == '0' ];then
     cd occlum_instance
     echo -e "${BLUE}instance: occlum run /bin/python3 mnist.py 0${NC}"
-    WORLD_SIZE=2 RANK=0 OMP_NUM_THREADS=16 occlum run /bin/python3 mnist.py --epoch 3 --no-cuda --seed 42 --save-model 
+    WORLD_SIZE=2 RANK=0 OMP_NUM_THREADS=16 occlum run /bin/python3 mnist.py --epoch 1 --no-cuda --seed 42 --save-model --batch-size 64
 else
     cd occlum_instance_2
     echo -e "${BLUE}instance_2: occlum run /bin/python3 mnist.py 1${NC}"
-    WORLD_SIZE=2 RANK=1 OMP_NUM_THREADS=16 occlum run /bin/python3 mnist.py --epoch 3 --no-cuda --seed 42 --save-model
+    WORLD_SIZE=2 RANK=1 OMP_NUM_THREADS=16 occlum run /bin/python3 mnist.py --epoch 1 --no-cuda --seed 42 --save-model --batch-size 64
 fi

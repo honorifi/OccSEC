@@ -4,8 +4,8 @@ use client::hs::client_tls_handshake;
 use conn::msg_handle::PackHandle;
 use std::fs::File;
 use std::io::{Write, Read};
-
 use comm::aes_comm::Aes128CtrCipher;
+use std::time::{Duration, Instant};
 
 const LENGH_WIDTH: usize = std::mem::size_of::<usize>();
 
@@ -117,6 +117,9 @@ pub fn generate_and_regist_pubkey(kssp_mode: usize) {
             return ;
         }
     };
+
+    let begin_time =Instant::now();
+
     let mut packhandle = PackHandle::new(&conn);
     let aes_cipher = client::hs::client_tls_handshake(&conn);
 
@@ -142,6 +145,8 @@ pub fn generate_and_regist_pubkey(kssp_mode: usize) {
     
     let close_req = aes_cipher.encrypt("close".as_bytes());
     packhandle.send_msg(&close_req, close_req.len());
+
+    println!("Identity Proof: {} ms", begin_time.elapsed().as_millis());
 
     let kssp_mode_str = match kssp_mode {
         0 => "off",

@@ -4,6 +4,7 @@ use std::any::Any;
 use fs::{FsView, FileMode, AccessMode, CreationFlags, StatusFlags, INodeFile, AsINodeFile};
 use self::local_proxy::{EncryptLocalProxy, RunningELP, EncryptMsg};
 use tls::comm::aes_comm::{Aes128CtrCipher, LENGH_WIDTH, MAX_MSG_LEN};
+use tls::comm::rc4_comm::RC4Cipher;
 use tls::comm::ca_manager::{get_echash_fromfile, get_shared_aes_fromfile};
 use std::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard, SgxRwLock as RwLock};
 
@@ -180,7 +181,7 @@ impl NfvSocket {
     }
 
     fn server_tls_handshake(&self, host_sc: &HostSocket) -> Result<Aes128CtrCipher> {
-        let sflag = SendFlags::MSG_NOSIGNAL;
+        let sflag = SendFlags::from_bits(0).unwrap();
         let mut server_hs = server::hs::ServerHsRmAt::new();
 
         if let Err(err) = server_hs.recv_clienthello_and_parse(&host_sc) {
@@ -240,7 +241,7 @@ impl NfvSocket {
 
     fn client_tls_handshake(&self) -> Result<()> {
         let mut client_hs = client::hs::ClientHsRmAt::new();
-        let sflag = SendFlags::MSG_NOSIGNAL;
+        let sflag = SendFlags::from_bits(0).unwrap();
         let client_hello = client_hs.start_handshake();
 
         if let Err(err) = self.host_sc.sendto(&client_hello, sflag, &None) {
@@ -326,7 +327,7 @@ impl NfvSocket {
         flags: SendFlags,
         addr_option: &Option<SockAddr>,
     ) -> Result<usize> {
-        // println!("call sendto flags: {}, buf_size: {}", flags.bits(), buf.len());
+        println!("call sendto flags: {}, buf_size: {}", flags.bits(), buf.len());
         // kssp mode on
         if self.pub_key_hash_tag != 0 {
             // there's already a connection
@@ -362,77 +363,81 @@ impl NfvSocket {
     }
 
     // recv a whole encrypted msg to aes_msg_buf
-    // pub fn recv_msg_to_amb(&self, flags: RecvFlags, expect_volumn: usize, amb: &mut MutexGuard<Vec<u8>>) -> Result<usize> {
-    //     let amb_len = amb.len();
+    pub fn recv_msg_to_amb(&self, flags: RecvFlags, expect_volumn: usize, amb: &mut MutexGuard<Vec<u8>>) -> Result<usize> {
+        let amb_len = amb.len();
 
-    //     if amb_len >= expect_volumn {
-    //         return Ok(0);
-    //     }
+        if amb_len >= expect_volumn {
+            return Ok(0);
+        }
 
-    //     let mut len_buf = [0u8; LENGH_WIDTH];
+        let mut len_buf = [0u8; LENGH_WIDTH];
 
-    //     let rflag = match amb_len {
-    //         0 => flags,
-    //         _ => (flags | RecvFlags::MSG_DONTWAIT),
-    //     };
+        let rflag = match amb_len {
+            0 => flags,
+            _ => (flags | RecvFlags::MSG_DONTWAIT),
+        };
 
-    //     // println!("peek len buf: {}", base64::encode(len_buf));
-    //     if let Err(err) = self.host_sc.recvfrom(&mut len_buf, rflag) {
-    //         if err.errno() == EAGAIN || amb_len != 0 {
-    //             return Ok(0);
-    //         }
-    //         println!("recvfrom err: {}", err);
-    //         return Err(err);
-    //     }
-    //     let msg_len = usize::from_be_bytes(len_buf);
-    //     // println!("parse len: {}", msg_len);
-    //     if msg_len == 0 {
-    //         // peer close the socket
-    //         return Ok(0);
-    //     }
-    //     let mut data_buf = vec![0u8; msg_len];
-    //     // println!("len buf: {}", base64::encode(len_buf));
-    //     self.host_sc.recvfrom(&mut data_buf, flags | RecvFlags::MSG_WAITALL);
-    //     // println!("recvfrom: {}", base64::encode(&data_buf));
-    //     let mut dec_msg = self.aes_cipher.read().unwrap().decrypt(&mut data_buf);
-    //     amb.append(&mut dec_msg);
+        // println!("peek len buf: {}", base64::encode(len_buf));
+        if let Err(err) = self.host_sc.recvfrom(&mut len_buf, rflag) {
+            if err.errno() == EAGAIN || amb_len != 0 {
+                return Ok(0);
+            }
+            println!("recvfrom err: {}", err);
+            return Err(err);
+        }
+        let msg_len = usize::from_be_bytes(len_buf);
+        println!("parse len: {}", msg_len);
+        if msg_len == 0 {
+            // peer close the socket
+            return Ok(0);
+        }
+        let mut data_buf = vec![0u8; msg_len];
+        let mut recv_ptr = 0;
+        while recv_ptr < msg_len {
+            let (recv_len, addr_option) = self.host_sc.recvfrom(&mut data_buf[recv_ptr..], flags).unwrap();
+            println!("recv len: {}", recv_len);
+            recv_ptr+=recv_len;
+        }
+        // println!("recvfrom: {}", base64::encode(&data_buf));
+        amb.resize(amb_len+msg_len, 0u8);
+        self.aes_cipher.read().unwrap().decrypt_to(&mut amb[amb_len..], &data_buf);
 
-    //     Ok(msg_len)
-    // }
+        Ok(msg_len)
+    }
 
     // asynchronous I/O
-    // pub fn fetch_msg_from_amb(&self, des: &mut [u8], flags: RecvFlags) -> Result<usize> {
-    //     let mut amb = self.aes_msg_buf.lock().unwrap();
+    pub fn fetch_msg_from_amb(&self, des: &mut [u8], flags: RecvFlags) -> Result<usize> {
+        let mut amb = self.aes_msg_buf.lock().unwrap();
 
-    //     let expect_volumn = des.len();
-    //     while match self.recv_msg_to_amb(flags, expect_volumn, &mut amb) {
-    //         Ok(x) => {
-    //             match x {
-    //                 0 => false,
-    //                 _ => true,
-    //             }
-    //         },
-    //         Err(err) => {
-    //             return Err(err);
-    //         }
-    //     }{;}
+        let expect_volumn = des.len();
+        while match self.recv_msg_to_amb(flags, expect_volumn, &mut amb) {
+            Ok(x) => {
+                match x {
+                    0 => false,
+                    _ => true,
+                }
+            },
+            Err(err) => {
+                return Err(err);
+            }
+        }{;}
 
-    //     let amb_len = amb.len();
-    //     if amb_len <= expect_volumn {
-    //         for i in 0..amb_len{
-    //             des[i] = amb[i];
-    //         }
-    //         amb.resize(0, 0u8);
-    //         Ok(amb_len)
-    //     }
-    //     else{
-    //         for i in 0..expect_volumn{
-    //             des[i] = amb[i];
-    //         }
-    //         *amb = amb.split_off(expect_volumn);
-    //         Ok(expect_volumn)
-    //     }
-    // }
+        let amb_len = amb.len();
+        if amb_len <= expect_volumn {
+            for i in 0..amb_len{
+                des[i] = amb[i];
+            }
+            amb.resize(0, 0u8);
+            Ok(amb_len)
+        }
+        else{
+            for i in 0..expect_volumn{
+                des[i] = amb[i];
+            }
+            *amb = amb.split_off(expect_volumn);
+            Ok(expect_volumn)
+        }
+    }
 
     // synchronous I/O
     pub fn fetch_msg(&self, des: &mut [u8], flags: RecvFlags) -> Result<usize> {
@@ -523,26 +528,26 @@ impl NfvSocket {
     }
 
     pub fn recvfrom(&self, buf: &mut [u8], flags: RecvFlags) -> Result<(usize, Option<SockAddr>)> {
-        // println!("call recvfrom, flag: {}, buf_size: {}", flags.bits(), buf.len());
+        println!("call recvfrom, flag: {}, buf_size: {}", flags.bits(), buf.len());
         // kssp mode on
         if self.pub_key_hash_tag != 0 {
             if let Err(err) = self.check_handshake_before_comm() {
                 return self.host_sc.recvfrom(buf, flags);
             }
 
-            // match self.fetch_msg_from_amb(buf, flags) {
-            //     Ok(len) => Ok((len, None)),
-            //     Err(err) => Err(err),
-            // }
-            match self.fetch_msg(buf, flags) {
+            match self.fetch_msg_from_amb(buf, flags) {
                 Ok(len) => Ok((len, None)),
                 Err(err) => Err(err),
             }
+            // match self.fetch_msg(buf, flags) {
+            //     Ok(len) => Ok((len, None)),
+            //     Err(err) => Err(err),
+            // }
 
             // let mut enc_msg = vec![0u8; buf.len()];
             // let ret = self.host_sc.recvfrom(&mut enc_msg, flags);
-            // if let Ok(x) = ret {
-            //     self.aes_cipher.read().unwrap().decrypt_to(buf, &enc_msg);
+            // if let Ok((msg_len, addr_option)) = ret {
+            //     self.aes_cipher.read().unwrap().decrypt_to(&mut buf[..msg_len], &enc_msg[..msg_len]);
             // }
             // ret
 
@@ -551,7 +556,7 @@ impl NfvSocket {
             //         // there's already a connection
             //         if let None = addr_option {
             //             let aes_cipher = self.aes_cipher.read().unwrap();
-            //             let enc_msg = aes_cipher.decrypt_to(buf, &enc_msg[..msg_len]);
+            //             let enc_msg = aes_cipher.decrypt_to(&mut buf[..msg_len], &enc_msg[..msg_len]);
             //             drop(aes_cipher);
             //         }
             //         // UDP recvfrom

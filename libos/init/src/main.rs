@@ -8,10 +8,14 @@ use serde::Deserialize;
 use std::error::Error;
 use std::fs::File;
 use std::io::{ErrorKind, Read};
+use std::time::{Duration, Instant};
 
 mod stls;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // time clock start
+    let begin_time =Instant::now();
+
     // Load the configuration from initfs
     const IMAGE_CONFIG_FILE: &str = "/etc/image_config.json";
     let image_config = load_config(IMAGE_CONFIG_FILE)?;
@@ -63,6 +67,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     stls::test_client::generate_and_regist_pubkey(kssp_mode);
     // edit by kxc ^
+
+    // time clock end
+    println!("init time cost: {} ms", begin_time.elapsed().as_millis());
 
     Ok(())
 }

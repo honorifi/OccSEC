@@ -44,7 +44,7 @@ function build_instance()
     #                 .env.default += ["PYTHONHOME=/opt/python-occlum"] |
     #                 .env.default += [ "MASTER_ADDR=127.0.0.1", "MASTER_PORT=29500" ] ' Occlum.json)" && \
     new_json="$(jq '.resource_limits.user_space_size = "8000MB" |
-                    .resource_limits.kernel_space_heap_size = "8000MB" |
+                    .resource_limits.kernel_space_heap_size = "16000MB" |
                     .resource_limits.max_num_of_threads = 64 | 
                     .env.untrusted += [ "MASTER_ADDR", "MASTER_PORT", "WORLD_SIZE", "RANK", "OMP_NUM_THREADS", "HOME" ] |
                     .env.default += ["PYTHONHOME=/opt/python-occlum"] |

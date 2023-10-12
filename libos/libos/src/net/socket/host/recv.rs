@@ -150,21 +150,21 @@ impl NfvSocket {
                 return self.host_sc.recv(buf, flags);
             }
 
-            // let mut rec_buf = vec![0u8; buf.len()];
-            // let len = match self.host_sc.recv(&mut rec_buf, flags) {
-            //     Ok(ret) => ret,
-            //     Err(err) => {
-            //         return Err(err);
-            //     }
-            // };
+            let mut rec_buf = vec![0u8; buf.len()];
+            let len = match self.host_sc.recv(&mut rec_buf, flags) {
+                Ok(ret) => ret,
+                Err(err) => {
+                    return Err(err);
+                }
+            };
 
-            // let dec_msg = self.aes_cipher.read().unwrap().decrypt_to(buf, &rec_buf[0..len]);
+            let dec_msg = self.aes_cipher.read().unwrap().decrypt_to(buf, &rec_buf[0..len]);
             // // print!("recvfr: ");
             // // echo_buf!(&rec_buf);
             // // print!("decmsg: ");
             // // echo_buf!(&buf[0..len]);
-            // Ok(len)
-            self.fetch_msg(buf, flags)
+            Ok(len)
+            // self.fetch_msg(buf, flags)
         }
         // kssp mode off
         else {

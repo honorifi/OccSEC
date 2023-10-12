@@ -222,20 +222,20 @@ impl ClientHsRmAt {
 
         let mut len_buf = [0u8; USIZE_LENGH];
         let mut retry = 0;
-        while let Err(err) = conn.recvfrom(&mut len_buf, /*rflag*/ RecvFlags::MSG_DONTWAIT) {
-            if err.errno() != EAGAIN || retry >= MAX_RETRY {
-                // println!("recv severhello err: {:?}", err);
-                return Err(err);
-            }
-            retry += 1;
-            // msg_len = usize::from_be_bytes(len_buf);
-            // if msg_len != 0 {break;}
-            std::thread::park_timeout(std::time::Duration::from_millis(1));
-        }
-
-        // if let Err(err) = conn.recvfrom(&mut len_buf, rflag) {
-        //     return Err(err);
+        // while let Err(err) = conn.recvfrom(&mut len_buf, /*rflag*/ RecvFlags::MSG_DONTWAIT) {
+        //     if err.errno() != EAGAIN || retry >= MAX_RETRY {
+        //         // println!("recv severhello err: {:?}", err);
+        //         return Err(err);
+        //     }
+        //     retry += 1;
+        //     // msg_len = usize::from_be_bytes(len_buf);
+        //     // if msg_len != 0 {break;}
+        //     std::thread::park_timeout(std::time::Duration::from_millis(1));
         // }
+
+        if let Err(err) = conn.recvfrom(&mut len_buf, rflag) {
+            return Err(err);
+        }
 
         let msg_len = usize::from_be_bytes(len_buf);
         if msg_len == 0 || msg_len >= 512 {

@@ -192,6 +192,13 @@ impl Aes128CtrCipher {
             ctr_inc,
         }
     }
+
+    pub fn to_be_bytes(&self) -> Vec<u8> {
+        let mut ret = Vec::from(self.key.clone());
+        let mut ctr = Vec::from(self.ctr.clone());
+        ret.append(&mut ctr);
+        ret
+    }
 }
 
 pub fn test_aes_comm(){

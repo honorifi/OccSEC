@@ -11,6 +11,7 @@ MYSQL=mysql
 MYSQLD=mysqld
 
 # 1. Init Occlum instance
+rm -f /tmp/mysql.sock
 rm -rf occlum_instance && occlum new occlum_instance
 pushd occlum_instance
 

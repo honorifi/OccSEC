@@ -1,6 +1,7 @@
 use super::*;
-use super::ecdsa::{EcdsaHandle, EcdsaPublic};
-use super::aes_comm::Aes128CtrCipher;
+use ecdsa::{EcdsaHandle, EcdsaPublic};
+use aes_comm::Aes128CtrCipher;
+use rc4_comm::RC4Cipher;
 use sgx_types::{uint8_t, SGX_ECP256_KEY_SIZE, uint32_t,
     SGX_NISTP_ECP256_KEY_SIZE, sgx_ec256_private_t, sgx_ec256_public_t};
 use std::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
@@ -153,6 +154,20 @@ pub fn get_shared_aes_fromfile(filename: &str) -> Option<Aes128CtrCipher> {
     file.read(&mut buf).unwrap();
 
     Some(Aes128CtrCipher::new(&buf).unwrap())
+}
+
+pub fn get_shared_rc4_fromfile(filename: &str) -> Option<RC4Cipher> {
+    let file_exist = FileReader::is_exist(filename);
+    if !file_exist {
+        // test_client::generate_and_regist_pubkey();
+        return None;
+    }
+
+    let mut file = FileReader::open(filename).unwrap();
+    let mut buf = vec![0u8; 512];
+    file.read(&mut buf).unwrap();
+
+    Some(RC4Cipher::new(&buf))
 }
 
 pub fn generate_ec_group_file() {

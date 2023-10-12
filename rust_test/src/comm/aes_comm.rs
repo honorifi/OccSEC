@@ -1,12 +1,12 @@
 use sgx_ucrypto;
 
-pub struct Aes_128_ctr_cipher {
+pub struct Aes128ctrcipher {
     key: [u8; 16],
     ctr: [u8; 16],
     ctr_inc: u32,
 }
 
-impl Aes_128_ctr_cipher {
+impl Aes128ctrcipher {
     pub fn new(init_bytes: &[u8]) -> Result<Self, String>{
         let init_bytes_len = init_bytes.len();
 
@@ -65,7 +65,7 @@ impl Aes_128_ctr_cipher {
 pub fn test_aes_comm(){
     let init_str = b"1937410592709672487620397232847923534235";
 
-    let aes_cipher = Aes_128_ctr_cipher::new(init_str).unwrap();
+    let aes_cipher = Aes128ctrcipher::new(init_str).unwrap();
 
     let plaintext = b"Hello world!";
     
