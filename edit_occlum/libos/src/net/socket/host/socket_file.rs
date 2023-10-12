@@ -102,32 +102,41 @@ impl File for HostSocket {
 extern crate sgx_types;
 impl File for NfvSocket {
     fn read(&self, buf: &mut [u8]) -> Result<usize> {
+        if self.pub_key_hash_tag != 0 {
         println!("call nfv read");
+        }
         self.host_sc.read(buf)
     }
 
     fn write(&self, buf: &[u8]) -> Result<usize> {
+        if self.pub_key_hash_tag != 0 {
         println!("call nfv write");
+        }
         self.host_sc.write(buf)
     }
 
     fn read_at(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
+        if self.pub_key_hash_tag != 0 {
         println!("call nfv read_at");
+        }
         self.host_sc.read_at(offset, buf)
     }
 
     fn write_at(&self, offset: usize, buf: &[u8]) -> Result<usize> {
+        if self.pub_key_hash_tag != 0 {
         println!("call nfv write_at");
+        }
         self.host_sc.write_at(offset, buf)
     }
 
     fn readv(&self, bufs: &mut [&mut [u8]]) -> Result<usize> {
-        println!("call nfv readv");
+        if self.pub_key_hash_tag != 0 {
+            println!("call nfv readv");
+        }
         self.host_sc.readv(bufs)
     }
 
     fn writev(&self, bufs: &[&[u8]]) -> Result<usize> {
-        println!("call nfv writev");
         // let aes_cipher = self.aes_cipher.read().unwrap();
         // let mut ret_len = 0;
         // if aes_cipher.key_valid() {
@@ -147,17 +156,9 @@ impl File for NfvSocket {
         //         Err(err) => Err(err),
         //     };
         // }
-        if self.aes_cipher.read().unwrap().key_valid() {
-            let mut enc_msg = Vec::new();
-            for data in bufs {
-                enc_msg.push(self.rc4_cipher.encrypt(data));
-            }
-            let mut enc_bufs = Vec::new();
-            let len = enc_msg.len();
-            for i in 0..len {
-                enc_bufs.push(&enc_msg[i][..]);
-            }
-            return self.host_sc.writev(&enc_bufs);
+        if self.pub_key_hash_tag != 0 {
+            // println!("call nfv writev");
+            return self.do_sendmsg(bufs, SendFlags::empty(), None, None);
         }
         
         self.host_sc.writev(bufs)

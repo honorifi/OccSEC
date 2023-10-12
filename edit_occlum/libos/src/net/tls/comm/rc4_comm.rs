@@ -134,6 +134,27 @@ impl RC4inner {
         self.ptr_j = j;
     }
 
+    pub fn decrypt_self(&mut self, buf: &mut [u8]) {
+        let mut i: usize = self.ptr_i;
+        let mut j: usize = self.ptr_j;
+
+        let len = buf.len();
+        let mut mid = 0u8;
+        let mut t = 0usize;
+        for iter in 0..len {
+            i = (i+1) % 256;
+            mid = self.seed[i];
+            t = (mid as usize + self.seed[j] as usize) % 256;
+            j = (j+mid as usize) % 256;
+            self.seed[i] = self.seed[j];
+            self.seed[j] = mid;
+
+            buf[iter] ^= self.seed[t];
+        }
+        self.ptr_i = i;
+        self.ptr_j = j;
+    }
+
     pub fn clone(&self) -> RC4inner {
         RC4inner{
             seed: self.seed.clone(),
@@ -197,7 +218,7 @@ impl RC4Cipher {
     pub fn encrypt(&self, buf: &[u8]) -> Vec<u8> {
         // backup, look back when send fail
         // self.sender_backup = self.sender.clone();
-
+        
         self.sender.lock().unwrap().encrypt(buf)
     }
 
@@ -207,6 +228,10 @@ impl RC4Cipher {
 
     pub fn decrypt_to(&self, des: &mut [u8], buf: &[u8]) {
         self.recver.lock().unwrap().decrypt_to(des, buf)
+    }
+
+    pub fn decrypt_self(&self, buf: &mut [u8]) {
+        self.recver.lock().unwrap().decrypt_self(buf)
     }
 
     // pub fn look_back(&mut self) {

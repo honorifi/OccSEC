@@ -568,17 +568,14 @@ impl NfvSocket {
             //     self.aes_cipher.read().unwrap().decrypt_to(&mut buf[..msg_len], &enc_msg[..msg_len]);
             // }
             // ret
-            let mut enc_msg = vec![0u8; buf.len()];
-            let ret = self.host_sc.recvfrom(&mut enc_msg, flags);
+            // let mut enc_msg = vec![0u8; buf.len()];
+            let ret = self.host_sc.recvfrom(buf, flags);
             if let Ok((msg_len, addr_option)) = ret {
                 if let None = addr_option {
-                    self.rc4_cipher.decrypt_to(buf, &enc_msg[..msg_len]);
+                    self.rc4_cipher.decrypt_self(&mut buf[..msg_len]);
                 }
                 else {
                     println!("\x1b[33m[Warning:] plaintext UDP recvfrom {:?}\x1b[0m", addr_option.unwrap());
-                    for i in 0..msg_len {
-                        buf[i] = enc_msg[i];
-                    }
                 }
             }
             ret

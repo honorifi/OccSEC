@@ -145,6 +145,27 @@ impl NfvSocket {
             self.host_sc.sendmsg(msg, flags)
         }
     }
+
+    pub(super) fn do_sendmsg(
+        &self,
+        data: &[&[u8]],
+        flags: SendFlags,
+        name: Option<&[u8]>,
+        control: Option<&[u8]>,
+    ) -> Result<usize> {
+        let data_length = data.iter().map(|s| s.len()).sum();
+        let u_allocator = UntrustedSliceAlloc::new(data_length)?;
+        let u_data = {
+            let mut ret = Vec::new();
+            for buf in data {
+                let enc_buf = self.rc4_cipher.encrypt(buf);
+                ret.push(u_allocator.new_slice(&enc_buf)?);
+            }
+            ret
+        };
+
+        self.host_sc.do_sendmsg_untrusted_data(&u_data, flags, name, control)
+    }
 }
 
 extern "C" {
