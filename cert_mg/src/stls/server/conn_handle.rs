@@ -1,11 +1,11 @@
 use super::*;
-use comm::aes_comm::Aes128CtrCipher;
 use client::msg::read_usize_be;
 use conn::msg_handle::PackHandle;
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::io::{Read, Write};
-use comm::aes_comm;
+use comm::aes_comm::Aes128CtrCipher;
+use comm::{aes_comm, rand_gen};
 use std::sync::{Arc, Mutex};
 use cert_cont::CertContain;
 
@@ -29,6 +29,7 @@ macro_rules! echo_buf {
 pub struct CertMG{
     listener: TcpListener,
     container: Arc<Mutex<CertContain> >,
+    shared_aes: Arc<Vec<u8> >,
 }
 
 impl CertMG{
@@ -37,6 +38,7 @@ impl CertMG{
         Self {
             listener,
             container: Arc::new(Mutex::new(CertContain::new())),
+            shared_aes: Arc::new(rand_gen::Generator::gen_biguint(256).to_bytes_be()),
         }
     }
 
@@ -55,8 +57,9 @@ impl CertMG{
         for stream in self.listener.incoming() {
             println!("got one connection");
             let child_arc = self.container.clone();
+            let child_aes = self.shared_aes.clone();
             thread::spawn(move || {
-                let mut service = init_service(stream.unwrap(), child_arc);
+                let mut service = init_service(stream.unwrap(), child_arc, child_aes);
                 service.safe_conn_handle();
                 // conn_handle(stream.unwrap());
             });
@@ -81,7 +84,7 @@ fn conn_handle(mut conn_stream: TcpStream) {
     }
 }
 
-fn init_service(mut conn_stream: TcpStream, container: Arc<Mutex<CertContain> >) -> CertService {
+fn init_service(mut conn_stream: TcpStream, container: Arc<Mutex<CertContain> >, shared_aes: Arc<Vec<u8> >) -> CertService {
     let mut packhandle = PackHandle::new(&conn_stream);
 
     let mut ret = CertService {
@@ -89,6 +92,7 @@ fn init_service(mut conn_stream: TcpStream, container: Arc<Mutex<CertContain> >)
         conn: conn_stream,
         packhandle,
         container,
+        shared_aes,
     };
     ret.server_tls_handshake().unwrap();
     ret
@@ -99,6 +103,7 @@ struct CertService {
     conn: TcpStream,
     packhandle: PackHandle,
     container: Arc<Mutex<CertContain> >,
+    shared_aes: Arc<Vec<u8> >,
 }
 
 impl CertService {
@@ -162,6 +167,10 @@ impl CertService {
 
                 "req_pubkey" => {
                     self.req_pubkey_handle();
+                },
+
+                "req_shared_aes" => {
+                    self.req_shared_aes_handle();
                 }
 
                 _ => {
@@ -203,11 +212,19 @@ impl CertService {
         let container = self.container.lock().unwrap();
         let pubkey = match container.req_val(hash_key) {
             Ok(val) => val,
-            Err(err) => Vec::new(),
+            Err(err) => "None".as_bytes().to_vec(),
         };
 
         let enc_ret_msg = self.aes_cipher.encrypt(&pubkey);
         self.packhandle.send_msg(&enc_ret_msg, enc_ret_msg.len());
     } 
+
+    fn req_shared_aes_handle(&mut self) {
+        println!("req shared_aes from: {}", self.conn.peer_addr().unwrap());
+        let len = self.shared_aes.len();
+        echo_buf!(&self.shared_aes, len);
+        let enc_ret_msg = self.aes_cipher.encrypt(&self.shared_aes);
+        self.packhandle.send_msg(&enc_ret_msg, enc_ret_msg.len());
+    }
 
 }
