@@ -1,0 +1,63 @@
+Bare Linux:
+root@25a9ff09ea37:~/occlum/kxc_demos/bounce_back# ./main 0 1
+rank: 0, repeat: 1
+Communicate test begin...
+time cost: 15.837678
+
+Throughput: 1.010249 Gbps
+
+Linux-TLS:
+time cost: 30.839034
+
+Throughput: 0.518823 Gbps
+
+Bare Occlum:
+time cost: 85.504260
+
+Throughput: 0.187125 Gbps
+
+OccSEC:
+time cost: 81.311916
+
+Throughput: 0.024597 Gbps
+
+Occlum-TLS:
+time cost: 105.310185
+
+Throughput: 0.018992 Gbps
+
+
+##################################new data######################################
+
+OccSEC:
+msg_size 4KB:
+Communicate test begin...
+
+time cost: 256.042054
+
+Throughput: 31.994744 Mbps
+
+msg_size 2KB:
+Communicate test begin...
+
+time cost: 162.099466
+
+Throughput: 25.268436 Mbps
+
+msg_size 1KB:
+Communicate test begin...
+
+time cost: 108.610429
+
+Throughput: 18.856384 Mbps
+
+
+Occlum-TLS:
+msg_size 1KB:
+Communicate test begin...
+TLS connection build......
+
+time cost: 89.112829
+
+Throughput: 22.982101 Mbps
+

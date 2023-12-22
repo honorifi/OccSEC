@@ -1,0 +1,18 @@
+includes:
+  - base.yaml
+targets:
+  - target: /bin
+    copy:
+      - files:
+        - ../main
+  - target: /myCA
+    copy:
+      - files:
+        - ../myCA/ca.pem
+        - ../myCA/ca-key.pem
+        - ../myCA/server-key.pem
+        - ../myCA/server-cert.pem
+        - ../myCA/client-key.pem
+        - ../myCA/client-cert.pem
+        - ../myCA/private_key.pem
+        - ../myCA/public_key.pem
