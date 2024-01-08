@@ -1,7 +1,3 @@
-[submodule "edit_occlum/occlum"]
-	path = edit_occlum/occlum
-	url = https://github.com/occlum/occlum.git
-
 [submodule "demos/bounce_back/bounce_back"]
 	path = demos/bounce_back/bounce_back
 	url = git@github.com:honorifi/Bounce_Back_Bench.git
