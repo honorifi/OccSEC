@@ -9,9 +9,9 @@ NC='\033[0m'
 if [ $1 == '0' ];then
     cd occlum_instance
     echo -e "${BLUE}instance: occlum run /bin/easy_socket.py 0${NC}"
-    /root/occlum/occlum/build/bin/occlum run /bin/python3 easy_socket.py 0 
+    occlum run /bin/python3 easy_socket.py 0 
 else
     cd occlum_instance_2
     echo -e "${BLUE}instance_2: occlum run /bin/easy_socket.py 1 -n 1${NC}"
-    /root/occlum/occlum/build/bin/occlum run /bin/python3 easy_socket.py 1 -n 1
+    occlum run /bin/python3 easy_socket.py 1 -n 1
 fi

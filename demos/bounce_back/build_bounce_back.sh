@@ -11,8 +11,8 @@ cd occlum_instance
 rm -rf image
 copy_bom -f ../main.yaml --root image --include-dir /opt/occlum/etc/template
 
-new_json="$(jq '.resource_limits.user_space_size = "8000MB" |
-		.resource_limits.kernel_space_heap_size="8000MB" |
+new_json="$(jq '.resource_limits.user_space_size = "256MB" |
+		.resource_limits.kernel_space_heap_size="256MB" |
         .resource_limits.max_num_of_threads = 64 |
 		.env.default += ["KSSP_MODE=on"]' Occlum.json)" && \
 echo "${new_json}" > Occlum.json
