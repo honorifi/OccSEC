@@ -1,0 +1,5 @@
+repeat: 10
+total time cost: 273.659000 (ms)
+average time:
+ Handshake: 26.455900 (ms)
+msg_trans: 1.902933 (ms/KB)

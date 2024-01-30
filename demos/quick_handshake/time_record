@@ -1,0 +1,37 @@
+Occlum KSSP-CertMG once RA KLC-miss each time:
+1:
+init time cost: 0.058s
+time cost: 0.082262s
+10:
+init time cost: 0.058s
+time cost: 1.225675s
+100:
+init time cost: 0.063s
+time cost: 12.677308s
+1000:
+init time cost: 0.060s
+time cost: 127.379744s
+
+Occlum KSSP-CertMG once RA once KLC-miss:
+1:
+init time cost: 0.140s
+time cost: 0.084807s
+10:
+init time cost: 0.142s
+time cost: 0.500589s
+100:
+init time cost: 0.136s
+time cost: 4.243358s
+1000:
+init time cost: 0.138s
+time cost: 37.923714s
+
+Gramine RA-TLS:
+1:
+time cost: 0.089301s
+10:
+time cost: 0.837880s
+100:
+time cost: 8.335313s
+1000:
+time cost: 83.149788s
